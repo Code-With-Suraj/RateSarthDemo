@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RateSarthi — Rate History</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+  
+  <div id="app-layout">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div>
+        <h3 class="text-xl font-bold text-slate-900 tracking-tight">Rate Modification History</h3>
+        <p class="text-xs text-slate-500">Track rate revisions, vendor price fluctuations, and historical procurement trends.</p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <select id="history-item-filter" onchange="loadRateHistory()" class="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-sm focus:outline-none focus:border-blue-500">
+          <option value="">All Items</option>
+        </select>
+
+        <select id="history-vendor-filter" onchange="loadRateHistory()" class="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-sm focus:outline-none focus:border-blue-500">
+          <option value="">All Vendors</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- History Table Card -->
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <th class="px-6 py-3.5">Log ID</th>
+              <th class="px-6 py-3.5">Item Name</th>
+              <th class="px-6 py-3.5">Vendor Name</th>
+              <th class="px-6 py-3.5">Previous Rate</th>
+              <th class="px-6 py-3.5">New Rate</th>
+              <th class="px-6 py-3.5 text-center">Change</th>
+              <th class="px-6 py-3.5 text-right">Timestamp & Request</th>
+            </tr>
+          </thead>
+          <tbody id="history-table-body" class="divide-y divide-slate-100">
+            <!-- Dynamic Content -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/components.js"></script>
+  <script src="../js/history.js"></script>
+</body>
+</html>

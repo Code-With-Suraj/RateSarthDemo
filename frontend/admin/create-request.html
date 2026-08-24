@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RateSarthi — Create Rate Request</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+  
+  <div id="app-layout">
+    <div class="mb-6 flex items-center justify-between">
+      <div>
+        <h3 class="text-xl font-bold text-slate-900 tracking-tight">Create New Rate Request</h3>
+        <p class="text-xs text-slate-500">Initiate item-wise rate collection from multiple vendors.</p>
+      </div>
+
+      <a href="requests.html" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-semibold">Cancel</a>
+    </div>
+
+    <!-- Wizard Container -->
+    <div class="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm max-w-3xl mx-auto">
+      
+      <!-- Wizard Progress Header -->
+      <div class="flex items-center justify-between mb-8 relative">
+        <div class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-slate-100 z-0"></div>
+
+        <div class="relative z-10 flex flex-col items-center gap-1">
+          <div id="step-indicator-1" class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shadow-md shadow-blue-500/30">1</div>
+          <span class="text-[11px] font-bold text-slate-700">Details</span>
+        </div>
+
+        <div class="relative z-10 flex flex-col items-center gap-1">
+          <div id="step-indicator-2" class="w-8 h-8 rounded-full bg-slate-200 text-slate-500 font-bold text-xs flex items-center justify-center">2</div>
+          <span class="text-[11px] font-bold text-slate-700">Items</span>
+        </div>
+
+        <div class="relative z-10 flex flex-col items-center gap-1">
+          <div id="step-indicator-3" class="w-8 h-8 rounded-full bg-slate-200 text-slate-500 font-bold text-xs flex items-center justify-center">3</div>
+          <span class="text-[11px] font-bold text-slate-700">Vendors</span>
+        </div>
+
+        <div class="relative z-10 flex flex-col items-center gap-1">
+          <div id="step-indicator-4" class="w-8 h-8 rounded-full bg-slate-200 text-slate-500 font-bold text-xs flex items-center justify-center">4</div>
+          <span class="text-[11px] font-bold text-slate-700">Publish</span>
+        </div>
+      </div>
+
+      <!-- Step 1: Request Details -->
+      <div id="wizard-step-1" class="space-y-4">
+        <h4 class="font-bold text-slate-900 text-base mb-4 border-b border-slate-100 pb-2">Step 1: Request Title & Timeline</h4>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Request Title *</label>
+          <input type="text" id="request-title" required placeholder="e.g. September Grocery Rate Request" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-500">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Item Category *</label>
+            <select id="request-category" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-500 bg-white">
+              <!-- Categories -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Quote Submission Due Date *</label>
+            <input type="date" id="due-date" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-500">
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Select Items -->
+      <div id="wizard-step-2" class="hidden space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+          <h4 class="font-bold text-slate-900 text-base">Step 2: Select Items to Include</h4>
+          <div class="space-x-2">
+            <button type="button" onclick="selectAllWizardItems(true)" class="text-xs text-blue-600 font-semibold hover:text-blue-700">Select All</button>
+            <span class="text-slate-300">•</span>
+            <button type="button" onclick="selectAllWizardItems(false)" class="text-xs text-slate-500 font-semibold hover:text-slate-700">Deselect All</button>
+          </div>
+        </div>
+        <div id="step-2-items-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
+          <!-- Items List -->
+        </div>
+      </div>
+
+      <!-- Step 3: Select Vendors -->
+      <div id="wizard-step-3" class="hidden space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+          <h4 class="font-bold text-slate-900 text-base">Step 3: Select Invited Vendors</h4>
+          <div class="space-x-2">
+            <button type="button" onclick="selectAllWizardVendors(true)" class="text-xs text-blue-600 font-semibold hover:text-blue-700">Select All</button>
+            <span class="text-slate-300">•</span>
+            <button type="button" onclick="selectAllWizardVendors(false)" class="text-xs text-slate-500 font-semibold hover:text-slate-700">Deselect All</button>
+          </div>
+        </div>
+        <div id="step-3-vendors-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
+          <!-- Vendors List -->
+        </div>
+      </div>
+
+      <!-- Step 4: Preview & Publish -->
+      <div id="wizard-step-4" class="hidden space-y-4">
+        <h4 class="font-bold text-slate-900 text-base mb-4 border-b border-slate-100 pb-2">Step 4: Review & Publish Request</h4>
+        <div class="bg-blue-50/60 border border-blue-100 rounded-xl p-5 space-y-3">
+          <div class="flex items-center justify-between border-b border-blue-100 pb-2">
+            <span class="text-xs text-slate-500 font-medium">Request Title</span>
+            <span class="text-sm font-bold text-slate-900" id="preview-title">—</span>
+          </div>
+          <div class="flex items-center justify-between border-b border-blue-100 pb-2">
+            <span class="text-xs text-slate-500 font-medium">Category</span>
+            <span class="text-xs font-bold text-slate-800" id="preview-category">—</span>
+          </div>
+          <div class="flex items-center justify-between border-b border-blue-100 pb-2">
+            <span class="text-xs text-slate-500 font-medium">Due Date</span>
+            <span class="text-xs font-bold font-mono text-slate-800" id="preview-due-date">—</span>
+          </div>
+          <div class="flex items-center justify-between border-b border-blue-100 pb-2">
+            <span class="text-xs text-slate-500 font-medium">Items Count</span>
+            <span class="text-xs font-bold text-blue-700" id="preview-item-count">—</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-slate-500 font-medium">Vendors Count</span>
+            <span class="text-xs font-bold text-blue-700" id="preview-vendor-count">—</span>
+          </div>
+        </div>
+        <p class="text-xs text-slate-500 text-center font-medium" id="preview-estimated-combos"></p>
+      </div>
+
+      <!-- Footer Navigation Controls -->
+      <div class="flex items-center justify-between pt-6 mt-6 border-t border-slate-100">
+        <button id="btn-prev" onclick="goToStep(currentStep - 1)" class="px-5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 hidden">Previous</button>
+        <div class="flex-1"></div>
+        <button id="btn-next" onclick="goToStep(currentStep + 1)" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm">Next Step</button>
+        <button id="btn-submit-request" onclick="submitRateRequestWizard()" class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 hidden">Publish Request</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/components.js"></script>
+  <script src="../js/create-request.js"></script>
+</body>
+</html>

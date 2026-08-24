@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RateSarthi — Rate Requests</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+  
+  <div id="app-layout">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div>
+        <h3 class="text-xl font-bold text-slate-900 tracking-tight">Rate Collection Requests</h3>
+        <p class="text-xs text-slate-500">Track active rate collection requests, vendor submission status, and deadline progress.</p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <select id="status-filter" onchange="filterRequests()" class="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-sm focus:outline-none focus:border-blue-500">
+          <option value="">All Statuses</option>
+          <option value="SENT">SENT</option>
+          <option value="PARTIALLY_COMPLETED">PARTIALLY COMPLETED</option>
+          <option value="COMPLETED">COMPLETED</option>
+          <option value="EXPIRED">EXPIRED</option>
+        </select>
+
+        <input type="text" id="search-request" oninput="filterRequests()" placeholder="Search requests..." class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm focus:outline-none focus:border-blue-500 w-full sm:w-64">
+
+        <a href="create-request.html" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <span>Create Request</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <th class="px-6 py-3.5">ID</th>
+              <th class="px-6 py-3.5">Request Title & Category</th>
+              <th class="px-6 py-3.5">Timeline</th>
+              <th class="px-6 py-3.5 text-center">Scope</th>
+              <th class="px-6 py-3.5">Vendor Progress</th>
+              <th class="px-6 py-3.5 text-center">Status</th>
+              <th class="px-6 py-3.5 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="requests-table-body" class="divide-y divide-slate-100">
+            <!-- Dynamic Content -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/components.js"></script>
+  <script src="../js/requests.js"></script>
+</body>
+</html>

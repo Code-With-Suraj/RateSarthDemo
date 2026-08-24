@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RateSarthi — Items Master</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+  
+  <div id="app-layout">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div>
+        <h3 class="text-xl font-bold text-slate-900 tracking-tight">Items Master</h3>
+        <p class="text-xs text-slate-500">Manage standard items, units of measurement, and packaging specifications.</p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <select id="category-filter" onchange="loadItems()" class="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-sm focus:outline-none focus:border-blue-500">
+          <option value="">All Categories</option>
+        </select>
+
+        <input type="text" id="search-item" oninput="filterItems()" placeholder="Search items..." class="px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm focus:outline-none focus:border-blue-500 w-full sm:w-64">
+
+        <button onclick="openAddItemModal()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <span>Add Item</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Items Table -->
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <th class="px-6 py-3.5">ID</th>
+              <th class="px-6 py-3.5">Item Name & Spec</th>
+              <th class="px-6 py-3.5">Category</th>
+              <th class="px-6 py-3.5">Unit</th>
+              <th class="px-6 py-3.5 text-center">Mapped Vendors</th>
+              <th class="px-6 py-3.5 text-center">Status</th>
+              <th class="px-6 py-3.5 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="items-table-body" class="divide-y divide-slate-100">
+            <!-- Dynamic Content -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Add/Edit Item Modal -->
+    <div id="item-modal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl animate-fade-in">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+          <h3 class="text-base font-bold text-slate-900">Item Details</h3>
+          <button onclick="closeItemModal()" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <form onsubmit="saveItem(event)" class="space-y-4">
+          <input type="hidden" id="item-id">
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Item Name *</label>
+            <input type="text" id="item-name" required placeholder="e.g. Refined Sugar M-30" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-500">
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Category *</label>
+              <select id="item-category" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-500 bg-white">
+                <!-- Dynamic categories -->
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Unit of Measurement *</label>
+              <input type="text" id="item-unit" required placeholder="e.g. Kg, Litre, Box" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-500">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Specification / Packing Standard</label>
+            <input type="text" id="item-spec" placeholder="e.g. 50kg HDPE Bag, Grade A" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-500">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Status</label>
+            <select id="item-status" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-500 bg-white">
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="INACTIVE">INACTIVE</option>
+            </select>
+          </div>
+
+          <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button type="button" onclick="closeItemModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700">Save Item</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/components.js"></script>
+  <script src="../js/items.js"></script>
+</body>
+</html>

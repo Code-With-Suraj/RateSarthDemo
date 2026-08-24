@@ -1,0 +1,38 @@
+/**
+ * RateSarthi - Vendor Portal Mobile-First CSS
+ */
+
+body.vendor-portal {
+  background-color: #f1f5f9;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #0f172a;
+}
+
+/* Touch-optimized inputs for smartphones */
+.vendor-portal input, 
+.vendor-portal select, 
+.vendor-portal textarea {
+  font-size: 16px !important; /* Prevents iOS auto-zoom on focus */
+  border-radius: 12px;
+}
+
+/* Card elevation */
+.vendor-item-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.vendor-item-card:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Fixed Bottom Mobile Action Bar */
+.mobile-action-bar {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid #e2e8f0;
+}
