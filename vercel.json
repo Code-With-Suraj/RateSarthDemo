@@ -1,11 +1,5 @@
 {
+  "outputDirectory": "frontend",
   "cleanUrls": true,
-  "rewrites": [
-    { "source": "/admin/:path*", "destination": "/frontend/admin/:path*" },
-    { "source": "/vendor/:path*", "destination": "/frontend/vendor/:path*" },
-    { "source": "/css/:path*", "destination": "/frontend/css/:path*" },
-    { "source": "/js/:path*", "destination": "/frontend/js/:path*" },
-    { "source": "/login", "destination": "/frontend/login.html" },
-    { "source": "/", "destination": "/frontend/index.html" }
-  ]
+  "trailingSlash": false
 }
