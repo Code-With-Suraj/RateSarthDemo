@@ -48,10 +48,8 @@ function renderVendorsTable(vendors) {
     return;
   }
 
-  const currentOrigin = window.location.origin + window.location.pathname.replace('/admin/vendors.html', '');
-
   tableBody.innerHTML = vendors.map(v => {
-    const portalUrl = `${currentOrigin}/vendor/portal.html?t=${v.portalToken}`;
+    const portalUrl = `${window.location.origin}/vendor/portal.html?t=${v.portalToken}`;
     const safeVendorName = Utils.escapeHtml(v.vendorName).replace(/'/g, "\\'");
     return `
       <tr class="hover:bg-slate-50/80 transition-colors border-b border-slate-100">

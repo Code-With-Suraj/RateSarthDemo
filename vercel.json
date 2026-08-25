@@ -1,5 +1,17 @@
 {
   "outputDirectory": "frontend",
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/vendor/portal", "destination": "/vendor/portal.html" },
+    { "source": "/admin/vendors/vendor/portal", "destination": "/vendor/portal.html" },
+    { "source": "/admin/vendors", "destination": "/admin/vendors.html" },
+    { "source": "/admin/requests", "destination": "/admin/requests.html" },
+    { "source": "/admin/comparison", "destination": "/admin/comparison.html" },
+    { "source": "/admin/dashboard", "destination": "/admin/dashboard.html" },
+    { "source": "/admin/categories", "destination": "/admin/categories.html" },
+    { "source": "/admin/items", "destination": "/admin/items.html" },
+    { "source": "/admin/create-request", "destination": "/admin/create-request.html" },
+    { "source": "/login", "destination": "/login.html" }
+  ]
 }
