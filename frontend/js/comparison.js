@@ -4,7 +4,8 @@
 
 let currentRequestId = '';
 let comparisonData = null;
-let currentView = 'matrix'; // 'matrix' | 'scenarios' | 'scorecards' | 'analytics'
+let negotiationData = null;
+let currentView = 'matrix'; // 'matrix' | 'scenarios' | 'scorecards' | 'analytics' | 'negotiations'
 
 document.addEventListener('DOMContentLoaded', () => {
   Components.initAdminLayout('requests');
@@ -13,7 +14,25 @@ document.addEventListener('DOMContentLoaded', () => {
   currentRequestId = urlParams.get('id') || urlParams.get('requestId') || 'REQ001';
 
   loadComparisonData();
+  loadNegotiationData();
 });
+
+async function loadNegotiationData() {
+  const res = await API.request('getNegotiationHistory', { requestId: currentRequestId });
+  if (res.success && res.data) {
+    negotiationData = res.data.negotiations || [];
+    const activeCount = negotiationData.filter(n => n.status === 'COUNTER_OFFERED').length;
+    const badge = document.getElementById('neg-tab-badge');
+    if (badge) {
+      if (activeCount > 0) {
+        badge.textContent = activeCount;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+  }
+}
 
 async function loadComparisonData() {
   const container = document.getElementById('comparison-view-container');
@@ -101,7 +120,7 @@ function switchView(viewName) {
   currentView = viewName;
 
   // Toggle Tab Button Classes
-  ['matrix', 'scenarios', 'scorecards', 'analytics'].forEach(v => {
+  ['matrix', 'scenarios', 'scorecards', 'analytics', 'negotiations'].forEach(v => {
     const btn = document.getElementById(`tab-${v}`);
     if (btn) {
       if (v === viewName) {
@@ -136,6 +155,9 @@ function renderActiveView() {
       break;
     case 'analytics':
       renderAnalyticsView();
+      break;
+    case 'negotiations':
+      renderNegotiationsView();
       break;
     default:
       renderMatrixView();
@@ -542,6 +564,14 @@ function openQuoteModal(itemId, vendorId) {
   document.getElementById('modal-contact').textContent = vendor ? vendor.contactPerson || '—' : '—';
   document.getElementById('modal-phone').textContent = vendor ? vendor.phone || '—' : '—';
 
+  const negBtn = document.getElementById('modal-btn-negotiate');
+  if (negBtn) {
+    negBtn.onclick = () => {
+      closeQuoteModal();
+      openCounterModal(itemId, vendorId);
+    };
+  }
+
   const modal = document.getElementById('quote-detail-modal');
   if (modal) modal.classList.remove('hidden');
 }
@@ -549,6 +579,326 @@ function openQuoteModal(itemId, vendorId) {
 function closeQuoteModal() {
   const modal = document.getElementById('quote-detail-modal');
   if (modal) modal.classList.add('hidden');
+}
+
+/* ==========================================================================
+   VIEW 5: PRICE NEGOTIATION & COUNTER-OFFER SUITE
+   ========================================================================== */
+function renderNegotiationsView() {
+  const container = document.getElementById('comparison-view-container');
+  if (!comparisonData) return;
+
+  const negs = negotiationData || [];
+  const matrix = comparisonData.matrix;
+  const vendors = comparisonData.vendors;
+
+  const activeCount = negs.filter(n => n.status === 'COUNTER_OFFERED').length;
+  const acceptedCount = negs.filter(n => n.status === 'NEGOTIATION_ACCEPTED').length;
+  const revisedCount = negs.filter(n => n.status === 'NEGOTIATION_REVISED').length;
+  const totalSavings = negs.reduce((sum, n) => sum + (n.savingsAchieved || 0), 0);
+
+  // Group negotiations by item
+  const itemNegMap = {};
+  matrix.forEach(row => {
+    itemNegMap[row.itemId] = negs.filter(n => String(n.itemId) === String(row.itemId));
+  });
+
+  const itemCardsHtml = matrix.map(row => {
+    const itemNegs = itemNegMap[row.itemId] || [];
+    const nonL1Rates = vendors.map(v => {
+      const r = row.vendorRates[v.vendorId];
+      return (r && r.rate !== null && r.rank > 1) ? { vendor: v, rateObj: r } : null;
+    }).filter(Boolean);
+
+    const negListHtml = itemNegs.length > 0 ? itemNegs.map(n => {
+      let statusBadgeCls = 'badge-counter_offered';
+      let statusText = 'Counter Offered (Pending Vendor Response)';
+      if (n.status === 'NEGOTIATION_ACCEPTED') {
+        statusBadgeCls = 'badge-negotiation_accepted';
+        statusText = '✅ Accepted by Vendor (Rate Updated)';
+      } else if (n.status === 'NEGOTIATION_REJECTED') {
+        statusBadgeCls = 'badge-negotiation_rejected';
+        statusText = '❌ Rejected by Vendor';
+      } else if (n.status === 'NEGOTIATION_REVISED') {
+        statusBadgeCls = 'badge-negotiation_revised';
+        statusText = `✏️ Vendor Revised to ${Utils.formatCurrency(n.vendorRevisedRate)}`;
+      }
+
+      return `
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-900 text-xs">${Utils.escapeHtml(n.vendorName)}</span>
+              <span class="px-1.5 py-0.2 text-[9px] font-mono font-bold bg-slate-200 text-slate-700 rounded">Round ${n.round}</span>
+            </div>
+            <span class="badge ${statusBadgeCls}">${statusText}</span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 text-xs font-mono bg-white p-2.5 rounded-lg border border-slate-100">
+            <div>
+              <span class="text-[10px] font-sans text-slate-400 block">Original Quote</span>
+              <span class="font-bold text-slate-700">${Utils.formatCurrency(n.originalRate)}</span>
+            </div>
+            <div>
+              <span class="text-[10px] font-sans text-sky-600 font-bold block">Counter Offer Target</span>
+              <span class="font-extrabold text-sky-700">${Utils.formatCurrency(n.targetRate)}</span>
+            </div>
+            <div>
+              <span class="text-[10px] font-sans text-emerald-600 font-bold block">Final Negotiated</span>
+              <span class="font-extrabold text-emerald-700">${n.status === 'NEGOTIATION_ACCEPTED' ? Utils.formatCurrency(n.targetRate) : (n.status === 'NEGOTIATION_REVISED' ? Utils.formatCurrency(n.vendorRevisedRate) : 'Pending')}</span>
+            </div>
+          </div>
+
+          ${n.adminMessage ? `<p class="text-xs text-slate-600 italic">"Admin: ${Utils.escapeHtml(n.adminMessage)}"</p>` : ''}
+          ${n.vendorMessage ? `<p class="text-xs text-slate-800 font-semibold italic bg-amber-50/70 p-2 rounded-lg border border-amber-200/60">"Vendor Response: ${Utils.escapeHtml(n.vendorMessage)}"</p>` : ''}
+
+          <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+            <span>Sent: ${Utils.formatDate(n.createdAt)}</span>
+            <div class="flex items-center gap-2">
+              ${n.vendorPhone ? `<button onclick="Utils.shareVendorWhatsApp('${n.vendorPhone}', '${n.vendorName}', '${window.location.origin}/vendor/portal.html?token=${n.vendorId}', '${row.itemName}')" class="text-emerald-600 hover:underline font-semibold flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.51 1.037 3.531l-.68 2.483 2.544-.667a5.723 5.723 0 002.867.766h.003c3.181 0 5.768-2.586 5.768-5.766 0-3.18-2.587-5.766-5.771-5.766zm3.376 8.163c-.144.405-.837.774-1.17.822-.297.043-.685.064-1.114-.073-.264-.084-.607-.2-1.026-.381-1.815-.785-3.003-2.617-3.094-2.738-.09-.122-.743-.988-.743-1.884 0-.896.469-1.336.636-1.516.167-.18.365-.225.487-.225.122 0 .243.002.348.006.11.005.258-.042.404.308.15.361.512 1.25.556 1.341.045.09.075.196.015.316-.06.12-.09.196-.18.301-.09.105-.189.234-.27.315-.09.09-.184.188-.079.369.105.18.468.772 1.004 1.25.688.613 1.269.803 1.45.893.18.09.285.075.39-.045.105-.12.45-.525.57-.705.12-.18.24-.15.405-.09.165.06 1.05.495 1.23.585.18.09.3.135.345.21.045.075.045.435-.099.84z"/></svg>WhatsApp Reminder</button>` : ''}
+              <button onclick="openCounterModal('${row.itemId}', '${n.vendorId}')" class="text-sky-600 hover:underline font-semibold">Counter Again (Next Round)</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('') : `<p class="text-xs text-slate-400 italic py-2">No negotiations initiated yet for this item.</p>`;
+
+    const vendorOptionsHtml = nonL1Rates.map(nr => `
+      <button onclick="openCounterModal('${row.itemId}', '${nr.vendor.vendorId}')" class="px-2.5 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 text-xs font-semibold flex items-center gap-1.5 transition-colors">
+        <span>Negotiate ${Utils.escapeHtml(nr.vendor.vendorName)}</span>
+        <span class="font-mono text-[11px] text-sky-900">(${Utils.formatCurrency(nr.rateObj.rate)})</span>
+      </button>
+    `).join('');
+
+    return `
+      <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h5 class="font-bold text-slate-900 text-sm">${Utils.escapeHtml(row.itemName)}</h5>
+            <p class="text-xs text-slate-400">${Utils.escapeHtml(row.specification || 'Standard')} • Unit: ${Utils.escapeHtml(row.unit)}</p>
+          </div>
+          <div class="text-right">
+            <span class="text-[10px] text-emerald-600 font-bold block">Lowest L1 Benchmark</span>
+            <span class="font-mono font-extrabold text-emerald-700 text-base">${Utils.formatCurrency(row.lowestRate)}</span>
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          ${negListHtml}
+        </div>
+
+        <!-- Quick Negotiation Trigger Bar -->
+        <div class="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs font-bold text-slate-500">Initiate Counter:</span>
+            ${vendorOptionsHtml.length > 0 ? vendorOptionsHtml : '<span class="text-xs text-slate-400">All quotes match L1</span>'}
+          </div>
+
+          ${nonL1Rates.length > 1 ? `
+            <button onclick="openBulkCounterModal('${row.itemId}')" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              <span>Bulk Counter All (${nonL1Rates.length} Vendors)</span>
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="p-6 space-y-6">
+      <div>
+        <h4 class="text-lg font-bold text-slate-900 tracking-tight">Price Negotiation Suite & Counter-Offer Engine</h4>
+        <p class="text-xs text-slate-500 mt-0.5">Send targeted counter-offers to non-L1 vendors, track multi-round negotiations, and auto-update rates upon agreement.</p>
+      </div>
+
+      <!-- Summary KPI Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div class="bg-sky-50 border border-sky-200 rounded-xl p-4">
+          <span class="text-[10px] font-bold uppercase text-sky-700">Active Counter Offers</span>
+          <div class="text-2xl font-extrabold text-sky-900 font-mono mt-1">${activeCount}</div>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+          <span class="text-[10px] font-bold uppercase text-emerald-700">Accepted Negotiations</span>
+          <div class="text-2xl font-extrabold text-emerald-900 font-mono mt-1">${acceptedCount}</div>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <span class="text-[10px] font-bold uppercase text-amber-700">Vendor Revised Quotes</span>
+          <div class="text-2xl font-extrabold text-amber-900 font-mono mt-1">${revisedCount}</div>
+        </div>
+        <div class="bg-teal-50 border border-teal-200 rounded-xl p-4">
+          <span class="text-[10px] font-bold uppercase text-teal-700">Negotiation Savings</span>
+          <div class="text-2xl font-extrabold text-teal-900 font-mono mt-1">${Utils.formatCurrency(totalSavings)}</div>
+        </div>
+      </div>
+
+      <!-- Item Negotiations Cards List -->
+      <div class="space-y-4">
+        ${itemCardsHtml}
+      </div>
+    </div>
+  `;
+}
+
+/* ==========================================================================
+   COUNTER-OFFER MODAL HANDLERS
+   ========================================================================== */
+function openCounterModal(itemId, vendorId) {
+  if (!comparisonData) return;
+
+  const row = comparisonData.matrix.find(r => r.itemId === itemId);
+  if (!row) return;
+
+  const rateObj = row.vendorRates[vendorId];
+  if (!rateObj) return;
+
+  const vendor = comparisonData.vendors.find(v => v.vendorId === vendorId);
+
+  document.getElementById('counter-item-id').value = itemId;
+  document.getElementById('counter-vendor-id').value = vendorId;
+
+  document.getElementById('counter-modal-item-title').textContent = `${row.itemName} — ${vendor ? vendor.vendorName : vendorId}`;
+  document.getElementById('counter-current-rate').textContent = Utils.formatCurrency(rateObj.rate);
+  document.getElementById('counter-l1-rate').textContent = Utils.formatCurrency(row.lowestRate);
+
+  const targetInput = document.getElementById('counter-target-input');
+  targetInput.value = row.lowestRate || rateObj.rate;
+  targetInput.dataset.currentRate = rateObj.rate;
+  targetInput.dataset.l1Rate = row.lowestRate;
+
+  updateCounterPreview();
+
+  const modal = document.getElementById('counter-offer-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeCounterModal() {
+  const modal = document.getElementById('counter-offer-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function updateCounterPreview() {
+  const targetInput = document.getElementById('counter-target-input');
+  const targetVal = parseFloat(targetInput.value) || 0;
+  const currentVal = parseFloat(targetInput.dataset.currentRate) || 0;
+
+  document.getElementById('counter-target-preview').textContent = Utils.formatCurrency(targetVal);
+
+  const discountPctSpan = document.getElementById('counter-discount-pct');
+  if (currentVal > 0 && targetVal < currentVal) {
+    const pct = Math.round(((currentVal - targetVal) / currentVal) * 100);
+    discountPctSpan.textContent = `${pct}% Discount Target`;
+  } else {
+    discountPctSpan.textContent = `0% Discount`;
+  }
+}
+
+function quickFillL1Target() {
+  const targetInput = document.getElementById('counter-target-input');
+  if (targetInput.dataset.l1Rate) {
+    targetInput.value = targetInput.dataset.l1Rate;
+    updateCounterPreview();
+  }
+}
+
+async function submitSingleCounterOffer(event) {
+  event.preventDefault();
+
+  const itemId = document.getElementById('counter-item-id').value;
+  const vendorId = document.getElementById('counter-vendor-id').value;
+  const targetRate = document.getElementById('counter-target-input').value;
+  const adminMessage = document.getElementById('counter-message-input').value;
+  const notifyWhatsapp = document.getElementById('counter-whatsapp-check').checked;
+
+  const btn = document.getElementById('btn-submit-counter');
+  btn.disabled = true;
+  btn.innerText = 'Sending...';
+
+  const res = await API.request('sendCounterOffer', {
+    requestId: currentRequestId,
+    itemId: itemId,
+    vendorId: vendorId,
+    targetRate: targetRate,
+    adminMessage: adminMessage
+  });
+
+  btn.disabled = false;
+  btn.innerText = 'Send Counter-Offer';
+
+  if (res.success) {
+    Utils.showToast('Counter-offer sent successfully!', 'success');
+    closeCounterModal();
+
+    if (notifyWhatsapp && res.data && res.data.phone) {
+      Utils.shareVendorWhatsApp(res.data.phone, res.data.vendorName, `${window.location.origin}/vendor/portal.html?token=${res.data.portalToken || res.data.vendorId}`, `Counter offer for request ${currentRequestId}`);
+    }
+
+    await loadNegotiationData();
+    await loadComparisonData();
+  } else {
+    Utils.showToast(res.message || 'Failed to send counter-offer', 'error');
+  }
+}
+
+/* Bulk Counter-Offer Handlers */
+function openBulkCounterModal(itemId) {
+  if (!comparisonData) return;
+
+  const row = comparisonData.matrix.find(r => r.itemId === itemId);
+  if (!row) return;
+
+  document.getElementById('bulk-counter-item-id').value = itemId;
+  document.getElementById('bulk-counter-item-title').textContent = `${row.itemName} (${row.specification || 'Standard'}) — Benchmark L1: ${Utils.formatCurrency(row.lowestRate)}`;
+  document.getElementById('bulk-target-input').value = row.lowestRate;
+
+  const modal = document.getElementById('bulk-counter-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeBulkCounterModal() {
+  const modal = document.getElementById('bulk-counter-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function submitBulkCounterOffer(event) {
+  event.preventDefault();
+
+  const itemId = document.getElementById('bulk-counter-item-id').value;
+  const targetRate = document.getElementById('bulk-target-input').value;
+  const adminMessage = document.getElementById('bulk-message-input').value;
+
+  const row = comparisonData.matrix.find(r => r.itemId === itemId);
+  if (!row) return;
+
+  // Find all non-L1 vendor IDs
+  const nonL1VendorIds = comparisonData.vendors.map(v => {
+    const r = row.vendorRates[v.vendorId];
+    return (r && r.rate !== null && r.rank > 1) ? v.vendorId : null;
+  }).filter(Boolean);
+
+  const btn = document.getElementById('btn-submit-bulk-counter');
+  btn.disabled = true;
+  btn.innerText = 'Sending to All...';
+
+  const res = await API.request('sendBulkCounterOffer', {
+    requestId: currentRequestId,
+    itemId: itemId,
+    targetRate: targetRate,
+    vendorIds: nonL1VendorIds,
+    adminMessage: adminMessage
+  });
+
+  btn.disabled = false;
+  btn.innerText = 'Send Bulk Counter-Offers';
+
+  if (res.success) {
+    Utils.showToast(`Bulk counter-offers sent to ${nonL1VendorIds.length} vendors!`, 'success');
+    closeBulkCounterModal();
+    await loadNegotiationData();
+    await loadComparisonData();
+  } else {
+    Utils.showToast(res.message || 'Failed to send bulk counter-offers', 'error');
+  }
 }
 
 /* ==========================================================================

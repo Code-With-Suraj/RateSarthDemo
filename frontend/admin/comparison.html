@@ -132,6 +132,12 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
           <span>Visual Price Analytics</span>
         </button>
+
+        <button id="tab-negotiations" onclick="switchView('negotiations')" class="px-4 py-3 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2 transition-colors">
+          <svg class="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"/></svg>
+          <span>Price Negotiation</span>
+          <span id="neg-tab-badge" class="hidden px-1.5 py-0.2 text-[9px] font-extrabold bg-sky-600 text-white rounded-full">0</span>
+        </button>
       </div>
 
       <!-- Quick Search & Filter Controls (Matrix view context) -->
@@ -249,7 +255,128 @@
           <span>Contact Person: <strong class="text-slate-700" id="modal-contact">—</strong></span>
           <span>Phone: <strong class="text-slate-700" id="modal-phone">—</strong></span>
         </div>
+
+        <div id="modal-negotiate-action-container" class="pt-2">
+          <button id="modal-btn-negotiate" class="w-full py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold shadow-md shadow-sky-500/20 flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"/></svg>
+            <span>Initiate Price Negotiation / Counter-Offer</span>
+          </button>
+        </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Single Vendor Counter-Offer Negotiation Modal -->
+  <div id="counter-offer-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm hidden">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 mx-4 animate-fade-in relative">
+      <button onclick="closeCounterModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-sky-50 border border-sky-200 text-sky-600 font-bold flex items-center justify-center text-lg">
+          💬
+        </div>
+        <div>
+          <h4 class="font-bold text-slate-900 text-base">Send Counter-Offer Rate</h4>
+          <p class="text-xs text-slate-500" id="counter-modal-item-title">Item Name & Vendor</p>
+        </div>
+      </div>
+
+      <form onsubmit="submitSingleCounterOffer(event)" class="space-y-4 text-xs">
+        <input type="hidden" id="counter-item-id">
+        <input type="hidden" id="counter-vendor-id">
+
+        <!-- Price Comparison Summary Card -->
+        <div class="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-center font-mono">
+          <div>
+            <span class="text-[10px] font-sans text-slate-400 font-medium block">Current Quote</span>
+            <span class="font-bold text-slate-900 text-sm mt-0.5 block" id="counter-current-rate">₹0.00</span>
+          </div>
+          <div>
+            <span class="text-[10px] font-sans text-emerald-600 font-bold block">Lowest (L1)</span>
+            <span class="font-bold text-emerald-700 text-sm mt-0.5 block" id="counter-l1-rate">₹0.00</span>
+          </div>
+          <div>
+            <span class="text-[10px] font-sans text-sky-600 font-bold block">Target Counter</span>
+            <span class="font-extrabold text-sky-700 text-sm mt-0.5 block" id="counter-target-preview">₹0.00</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Target Counter Rate (₹)</label>
+          <input type="number" step="0.01" id="counter-target-input" oninput="updateCounterPreview()" required class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-mono text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Enter target rate...">
+          <div class="flex items-center justify-between mt-1 text-[11px] text-slate-400">
+            <span>Quick Match L1: <button type="button" onclick="quickFillL1Target()" class="text-emerald-600 font-bold hover:underline" id="btn-quick-l1">Use L1 Rate</button></span>
+            <span id="counter-discount-pct" class="font-semibold text-sky-700">0% Discount</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Message to Vendor (Optional)</label>
+          <textarea id="counter-message-input" rows="3" class="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="e.g. Hi, another vendor is offering ₹139. If you can match ₹140, we will award you the order..."></textarea>
+        </div>
+
+        <div class="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="counter-whatsapp-check" checked class="w-4 h-4 text-emerald-600 rounded">
+            <label for="counter-whatsapp-check" class="text-xs font-semibold text-emerald-900">Notify Vendor via WhatsApp</label>
+          </div>
+          <svg class="w-5 h-5 text-emerald-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.51 1.037 3.531l-.68 2.483 2.544-.667a5.723 5.723 0 002.867.766h.003c3.181 0 5.768-2.586 5.768-5.766 0-3.18-2.587-5.766-5.771-5.766zm3.376 8.163c-.144.405-.837.774-1.17.822-.297.043-.685.064-1.114-.073-.264-.084-.607-.2-1.026-.381-1.815-.785-3.003-2.617-3.094-2.738-.09-.122-.743-.988-.743-1.884 0-.896.469-1.336.636-1.516.167-.18.365-.225.487-.225.122 0 .243.002.348.006.11.005.258-.042.404.308.15.361.512 1.25.556 1.341.045.09.075.196.015.316-.06.12-.09.196-.18.301-.09.105-.189.234-.27.315-.09.09-.184.188-.079.369.105.18.468.772 1.004 1.25.688.613 1.269.803 1.45.893.18.09.285.075.39-.045.105-.12.45-.525.57-.705.12-.18.24-.15.405-.09.165.06 1.05.495 1.23.585.18.09.3.135.345.21.045.075.045.435-.099.84z"/></svg>
+        </div>
+
+        <div class="pt-2 flex items-center justify-end gap-2">
+          <button type="button" onclick="closeCounterModal()" class="px-4 py-2 rounded-xl text-slate-500 hover:bg-slate-100 font-semibold">Cancel</button>
+          <button type="submit" id="btn-submit-counter" class="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold shadow-md shadow-sky-500/20 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            <span>Send Counter-Offer</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bulk Counter-Offer Modal (For all non-L1 vendors) -->
+  <div id="bulk-counter-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm hidden">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 mx-4 animate-fade-in relative">
+      <button onclick="closeBulkCounterModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 font-bold flex items-center justify-center text-lg">
+          ⚡
+        </div>
+        <div>
+          <h4 class="font-bold text-slate-900 text-base">Bulk Counter-Offer (All Non-L1 Vendors)</h4>
+          <p class="text-xs text-slate-500" id="bulk-counter-item-title">Item Name</p>
+        </div>
+      </div>
+
+      <form onsubmit="submitBulkCounterOffer(event)" class="space-y-4 text-xs">
+        <input type="hidden" id="bulk-counter-item-id">
+
+        <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-amber-800 text-xs">
+          <strong>Notice:</strong> This will send a uniform counter-offer rate to all vendors who quoted higher than L1 for this item.
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Target Counter Rate for All (₹)</label>
+          <input type="number" step="0.01" id="bulk-target-input" required class="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-mono text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Enter target rate...">
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Message to All Vendors</label>
+          <textarea id="bulk-message-input" rows="3" class="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. Dear Vendor, we have received a competitive quote of L1 rate. Please match this price to be considered for allocation."></textarea>
+        </div>
+
+        <div class="pt-2 flex items-center justify-end gap-2">
+          <button type="button" onclick="closeBulkCounterModal()" class="px-4 py-2 rounded-xl text-slate-500 hover:bg-slate-100 font-semibold">Cancel</button>
+          <button type="submit" id="btn-submit-bulk-counter" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-500/20 flex items-center gap-2">
+            <span>Send Bulk Counter-Offers</span>
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 

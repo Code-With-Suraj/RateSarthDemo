@@ -44,9 +44,134 @@ async function loadVendorPortalData() {
 
     renderVendorHeader();
     renderVendorItems(itemsData);
+    loadVendorNegotiations();
     document.getElementById('portal-content').classList.remove('hidden');
   } else {
     showPortalError('Portal Access Error', res.message || 'Unable to load rate request.');
+  }
+}
+
+async function loadVendorNegotiations() {
+  const res = await API.request('getVendorNegotiations', { requestId: requestId }, portalToken);
+  const container = document.getElementById('vendor-negotiations-container');
+  if (res.success && res.data && res.data.negotiations && res.data.negotiations.length > 0) {
+    renderVendorNegotiations(res.data.negotiations);
+    container.classList.remove('hidden');
+  } else {
+    container.classList.add('hidden');
+  }
+}
+
+function renderVendorNegotiations(negs) {
+  const container = document.getElementById('vendor-negotiations-container');
+  const activeNegs = negs.filter(n => n.status === 'COUNTER_OFFERED' || n.status === 'NEGOTIATION_REVISED');
+
+  if (activeNegs.length === 0) {
+    container.classList.add('hidden');
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+      <div class="flex items-center gap-2 border-b border-sky-100 pb-3">
+        <span class="text-xl">💬</span>
+        <div>
+          <h3 class="font-bold text-sky-950 text-sm sm:text-base">Price Counter-Offer Negotiation Request</h3>
+          <p class="text-xs text-sky-700">Procurement Team has sent counter-offers for your review.</p>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        ${activeNegs.map(n => `
+          <div class="bg-white border border-sky-100 rounded-xl p-4 shadow-xs space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="font-bold text-slate-900 text-sm">${Utils.escapeHtml(n.itemName)}</h4>
+                <p class="text-[11px] text-slate-400">Unit: ${Utils.escapeHtml(n.unit)} ${n.specification ? '• Spec: ' + Utils.escapeHtml(n.specification) : ''}</p>
+              </div>
+              <span class="px-2 py-0.5 text-[10px] font-bold bg-sky-100 text-sky-800 rounded-full">Round ${n.round}</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-100 text-center font-mono">
+              <div>
+                <span class="text-[10px] font-sans text-slate-400 font-medium block">Your Quoted Rate</span>
+                <span class="font-bold text-slate-700 text-xs mt-0.5 block">${Utils.formatCurrency(n.originalRate)}</span>
+              </div>
+              <div>
+                <span class="text-[10px] font-sans text-sky-600 font-bold block">Procurement Target Rate</span>
+                <span class="font-extrabold text-sky-700 text-sm mt-0.5 block">${Utils.formatCurrency(n.targetRate)}</span>
+              </div>
+            </div>
+
+            ${n.adminMessage ? `
+              <div class="p-2.5 rounded-lg bg-sky-50/70 border border-sky-100 text-xs text-sky-900 italic">
+                "Procurement Note: ${Utils.escapeHtml(n.adminMessage)}"
+              </div>
+            ` : ''}
+
+            <!-- Response Action Options -->
+            <div class="pt-2 space-y-2" id="neg-action-box-${n.negotiationId}">
+              <div class="flex flex-wrap items-center gap-2">
+                <button onclick="handleVendorNegResponse('${n.negotiationId}', 'ACCEPT')" class="flex-1 min-w-[130px] py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-1 transition-all">
+                  <span>✓ Accept ${Utils.formatCurrency(n.targetRate)}</span>
+                </button>
+
+                <button onclick="toggleReviseBox('${n.negotiationId}')" class="py-2 px-3 rounded-xl bg-sky-100 hover:bg-sky-200 text-sky-800 font-bold text-xs flex items-center justify-center gap-1 transition-all">
+                  <span>✏️ Revise Rate</span>
+                </button>
+
+                <button onclick="handleVendorNegResponse('${n.negotiationId}', 'REJECT')" class="py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-xs transition-all">
+                  <span>Decline</span>
+                </button>
+              </div>
+
+              <!-- Collapsible Revise Input -->
+              <div id="revise-box-${n.negotiationId}" class="hidden p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 mt-2">
+                <label class="block text-[11px] font-bold text-slate-700">Enter Your Best Revised Counter Rate (₹)</label>
+                <div class="flex gap-2">
+                  <input type="number" step="0.01" id="input-revise-${n.negotiationId}" placeholder="${n.targetRate}" class="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                  <button onclick="handleVendorNegResponse('${n.negotiationId}', 'REVISE')" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-lg shadow-xs">
+                    Submit Revision
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function toggleReviseBox(negId) {
+  const box = document.getElementById(`revise-box-${negId}`);
+  if (box) box.classList.toggle('hidden');
+}
+
+async function handleVendorNegResponse(negId, action) {
+  let revisedRate = null;
+  if (action === 'REVISE') {
+    const input = document.getElementById(`input-revise-${negId}`);
+    revisedRate = input ? input.value : null;
+    if (!revisedRate || parseFloat(revisedRate) <= 0) {
+      Utils.showToast('Please enter a valid revised rate', 'error');
+      return;
+    }
+  }
+
+  const payload = {
+    negotiationId: negId,
+    action: action,
+    revisedRate: revisedRate,
+    message: action === 'ACCEPT' ? 'Accepted counter offer rate' : (action === 'REVISE' ? `Revised rate to ₹${revisedRate}` : 'Declined counter offer')
+  };
+
+  const res = await API.request('respondToNegotiation', payload, portalToken);
+  if (res.success) {
+    Utils.showToast(`Negotiation response sent!`, 'success');
+    await loadVendorPortalData();
+  } else {
+    Utils.showToast(res.message || 'Failed to submit response', 'error');
   }
 }
 
