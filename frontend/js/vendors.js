@@ -3,11 +3,35 @@
  */
 
 let vendorsData = [];
+let categoriesData = [];
 
 document.addEventListener('DOMContentLoaded', () => {
   Components.initAdminLayout('vendors');
+  loadCategories();
   loadVendors();
 });
+
+async function loadCategories() {
+  const catSelect = document.getElementById('category');
+  if (!catSelect) return;
+
+  const res = await API.request('getCategories');
+  let cats = [];
+  if (res.success && Array.isArray(res.data)) {
+    cats = res.data.map(c => c.categoryName).filter(Boolean);
+  }
+
+  if (cats.length === 0) {
+    cats = ['Grocery', 'Packaging', 'Dairy', 'Stationery', 'Beverages', 'General'];
+  }
+
+  categoriesData = cats;
+
+  catSelect.innerHTML = `
+    <option value="">Select Category...</option>
+    ${cats.map(c => `<option value="${Utils.escapeHtml(c)}">${Utils.escapeHtml(c)}</option>`).join('')}
+  `;
+}
 
 async function loadVendors() {
   const tableBody = document.getElementById('vendors-table-body');
@@ -116,7 +140,11 @@ function openAddVendorModal() {
   document.getElementById('contact-person').value = '';
   document.getElementById('phone').value = '';
   document.getElementById('email').value = '';
-  document.getElementById('category').value = 'Grocery';
+  
+  const catSelect = document.getElementById('category');
+  if (catSelect) {
+    catSelect.value = categoriesData.length > 0 ? categoriesData[0] : '';
+  }
   document.getElementById('status').value = 'ACTIVE';
   document.getElementById('vendor-modal').classList.remove('hidden');
 }
@@ -131,7 +159,19 @@ function openEditVendorModal(vendorId) {
   document.getElementById('contact-person').value = vendor.contactPerson;
   document.getElementById('phone').value = vendor.phone;
   document.getElementById('email').value = vendor.email;
-  document.getElementById('category').value = vendor.category || 'Grocery';
+
+  const catSelect = document.getElementById('category');
+  if (catSelect) {
+    let catVal = vendor.category || '';
+    if (catVal && ![...catSelect.options].some(o => o.value === catVal)) {
+      const opt = document.createElement('option');
+      opt.value = catVal;
+      opt.textContent = catVal;
+      catSelect.appendChild(opt);
+    }
+    catSelect.value = catVal;
+  }
+
   document.getElementById('status').value = vendor.status || 'ACTIVE';
   document.getElementById('vendor-modal').classList.remove('hidden');
 }
