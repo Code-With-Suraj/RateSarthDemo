@@ -830,7 +830,12 @@ async function submitSingleCounterOffer(event) {
     closeCounterModal();
 
     if (notifyWhatsapp && res.data && res.data.phone) {
-      Utils.shareVendorWhatsApp(res.data.phone, res.data.vendorName, `${window.location.origin}/vendor/portal.html?token=${res.data.portalToken || res.data.vendorId}`, `Counter offer for request ${currentRequestId}`);
+      const portalUrl = `${window.location.origin}/vendor/portal.html?token=${res.data.portalToken || res.data.vendorId}&req=${currentRequestId}`;
+      const row = comparisonData.matrix ? comparisonData.matrix.find(r => String(r.itemId) === String(itemId)) : null;
+      const itemName = row ? row.itemName : 'Item';
+      const origRate = res.data.originalRate || '';
+      const reqTitle = (comparisonData.request ? comparisonData.request.RequestTitle : currentRequestId);
+      Utils.shareVendorCounterOfferWhatsApp(res.data.phone, res.data.vendorName, reqTitle, itemName, origRate, targetRate, adminMessage, portalUrl);
     }
 
     await loadNegotiationData();
@@ -894,6 +899,18 @@ async function submitBulkCounterOffer(event) {
   if (res.success) {
     Utils.showToast(`Bulk counter-offers sent to ${nonL1VendorIds.length} vendors!`, 'success');
     closeBulkCounterModal();
+
+    // Trigger WhatsApp links sequentially for non-L1 vendors
+    if (Array.isArray(res.data) && res.data.length > 0) {
+      res.data.forEach((vItem, idx) => {
+        setTimeout(() => {
+          const portalUrl = `${window.location.origin}/vendor/portal.html?token=${vItem.portalToken || vItem.vendorId}&req=${currentRequestId}`;
+          const reqTitle = (comparisonData.request ? comparisonData.request.RequestTitle : currentRequestId);
+          Utils.shareVendorCounterOfferWhatsApp(vItem.phone, vItem.vendorName, reqTitle, row.itemName, vItem.originalRate, targetRate, adminMessage, portalUrl);
+        }, idx * 400);
+      });
+    }
+
     await loadNegotiationData();
     await loadComparisonData();
   } else {

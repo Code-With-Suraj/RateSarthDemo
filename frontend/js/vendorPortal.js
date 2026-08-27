@@ -170,6 +170,7 @@ async function handleVendorNegResponse(negId, action) {
   if (res.success) {
     Utils.showToast(`Negotiation response sent!`, 'success');
     await loadVendorPortalData();
+    openManagerNotifyModal('NEGOTIATION', { action: action, revisedRate: revisedRate, message: payload.message, negotiationId: negId });
   } else {
     Utils.showToast(res.message || 'Failed to submit response', 'error');
   }
@@ -356,10 +357,66 @@ async function submitAllVendorRates() {
 
   if (res.success) {
     Utils.showToast('Rates submitted successfully! Thank you.', 'success');
-    setTimeout(() => {
-      location.reload();
-    }, 1000);
+    openManagerNotifyModal('SUBMISSION');
   } else {
     Utils.showToast(res.message || 'Failed to submit rates', 'error');
   }
+}
+
+let activeNotifyPayload = null;
+
+function openManagerNotifyModal(type, extraData = {}) {
+  const modal = document.getElementById('vendor-notify-manager-modal');
+  if (!modal) return;
+
+  const phoneInput = document.getElementById('manager-phone-input');
+  phoneInput.value = Utils.getManagerPhone() || '';
+
+  const vName = vendorData ? vendorData.vendorName : 'Vendor';
+  const reqTitle = requestData ? requestData.requestTitle : requestId;
+  const comparisonUrl = `${window.location.origin}/admin/comparison.html?id=${requestId}`;
+
+  activeNotifyPayload = { type, extraData, vName, reqTitle, comparisonUrl };
+
+  const preview = document.getElementById('notify-modal-msg-preview');
+  if (type === 'SUBMISSION') {
+    document.getElementById('notify-modal-title').textContent = 'Notify Manager — Rate Submission Complete';
+    document.getElementById('notify-modal-subtitle').textContent = `Inform procurement manager that ${vName} submitted rates.`;
+    preview.innerHTML = `<strong>WhatsApp Message:</strong><br>Hello Manager, Vendor <strong>${vName}</strong> has completed submitting rates for RFQ: <strong>${reqTitle}</strong>. Click link to view comparison matrix.`;
+  } else if (type === 'NEGOTIATION') {
+    document.getElementById('notify-modal-title').textContent = 'Notify Manager — Counter Offer Response';
+    document.getElementById('notify-modal-subtitle').textContent = `Inform manager about your negotiation response.`;
+    const actionLabel = extraData.action === 'ACCEPT' ? 'ACCEPTED' : (extraData.action === 'REVISE' ? `REVISED to ₹${extraData.revisedRate}` : 'DECLINED');
+    preview.innerHTML = `<strong>WhatsApp Message:</strong><br>Hello Manager, Vendor <strong>${vName}</strong> has <strong>${actionLabel}</strong> counter offer for RFQ: <strong>${reqTitle}</strong>.`;
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closeManagerNotifyModal() {
+  const modal = document.getElementById('vendor-notify-manager-modal');
+  if (modal) modal.classList.add('hidden');
+  setTimeout(() => location.reload(), 300);
+}
+
+function sendWhatsAppToManagerNow() {
+  const phone = document.getElementById('manager-phone-input').value.trim();
+  if (!phone) {
+    Utils.showToast('Please enter Manager WhatsApp phone number', 'warning');
+    return;
+  }
+
+  Utils.setManagerPhone(phone);
+
+  if (!activeNotifyPayload) return;
+
+  const { type, extraData, vName, reqTitle, comparisonUrl } = activeNotifyPayload;
+
+  if (type === 'SUBMISSION') {
+    Utils.shareManagerVendorSubmittedWhatsApp(phone, vName, reqTitle, comparisonUrl);
+  } else if (type === 'NEGOTIATION') {
+    Utils.shareManagerNegotiationResponseWhatsApp(phone, vName, reqTitle, extraData.itemName || 'Item', extraData.action, extraData.revisedRate, extraData.message, comparisonUrl);
+  }
+
+  closeManagerNotifyModal();
 }

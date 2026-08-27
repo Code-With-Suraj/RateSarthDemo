@@ -190,9 +190,10 @@ async function submitRateRequestWizard() {
 
   if (res.success) {
     Utils.showToast('Rate Request published successfully!', 'success');
+    const newReqId = (res.data && res.data.requestId) ? res.data.requestId : '';
     setTimeout(() => {
-      window.location.href = 'requests.html';
-    }, 600);
+      window.location.href = `requests.html${newReqId ? '?sendWa=' + newReqId : ''}`;
+    }, 400);
   } else {
     Utils.showToast(res.message || 'Failed to create rate request', 'error');
   }

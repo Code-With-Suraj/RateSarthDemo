@@ -113,20 +113,81 @@ const Utils = {
   },
 
   /**
-   * Share Vendor Portal Link via WhatsApp Deep Link
+   * Format phone number with country code (+91 default for 10 digits)
    */
-  shareVendorWhatsApp(phone, vendorName, portalUrl, requestTitle = '') {
-    let cleanPhone = String(phone || '').replace(/\D/g, '');
-    if (cleanPhone.length === 10) {
-      cleanPhone = '91' + cleanPhone; // Default to India country code (+91) for 10-digit numbers
+  cleanPhoneNumber(phone) {
+    let clean = String(phone || '').replace(/\D/g, '');
+    if (clean.length === 10) {
+      clean = '91' + clean;
+    }
+    return clean;
+  },
+
+  /**
+   * Get Manager WhatsApp Phone Number from Local Storage (Default fallback)
+   */
+  getManagerPhone() {
+    return localStorage.getItem('ratesarthi_manager_phone') || '';
+  },
+
+  /**
+   * Save Manager WhatsApp Phone Number to Local Storage
+   */
+  setManagerPhone(phone) {
+    if (phone) {
+      localStorage.setItem('ratesarthi_manager_phone', this.cleanPhoneNumber(phone));
+    }
+  },
+
+  /**
+   * Open WhatsApp Deep Link
+   */
+  openWhatsAppLink(phone, messageText) {
+    const cleanPhone = this.cleanPhoneNumber(phone);
+    const encodedText = encodeURIComponent(messageText);
+    const link = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`;
+    window.open(link, '_blank');
+  },
+
+  /**
+   * Share Vendor Portal Link via WhatsApp Deep Link (General / RFQ Invitation)
+   */
+  shareVendorWhatsApp(phone, vendorName, portalUrl, requestTitle = '', dueDate = '') {
+    const titleMsg = requestTitle ? ` for *${requestTitle}*` : '';
+    const dateMsg = dueDate ? `\n📅 Due Date: *${this.formatDate(dueDate)}*` : '';
+    const message = `Hello *${vendorName}*,\n\nYou have received a Rate Collection Request${titleMsg} on *RateSarthi Procurement Portal*.${dateMsg}\n\nPlease click the link below to submit/update your rates:\n\n🔗 ${portalUrl}\n\nThank you!`;
+    this.openWhatsAppLink(phone, message);
+  },
+
+  /**
+   * Send WhatsApp to Manager when Vendor Submits / Completes Rate Quotes
+   */
+  shareManagerVendorSubmittedWhatsApp(managerPhone, vendorName, requestTitle, comparisonUrl) {
+    const message = `🚨 *RateSarthi Notification — Rate Submission Completed*\n\nHello Manager,\n\nVendor *${vendorName}* has completed submitting rates for RFQ: *${requestTitle}*.\n\n📊 View updated rate comparison & L1 matrix:\n🔗 ${comparisonUrl}\n\nThank you!`;
+    this.openWhatsAppLink(managerPhone, message);
+  },
+
+  /**
+   * Send WhatsApp to Vendor for Counter-Offer Negotiation
+   */
+  shareVendorCounterOfferWhatsApp(phone, vendorName, requestTitle, itemName, originalRate, targetRate, adminMsg, portalUrl) {
+    const message = `💬 *RateSarthi — Price Counter-Offer Request*\n\nHello *${vendorName}*,\n\nProcurement team has sent a counter offer for *${itemName}* on RFQ *${requestTitle}*:\n\n• Your Quoted Rate: *${this.formatCurrency(originalRate)}*\n• Target Counter Rate: *${this.formatCurrency(targetRate)}*${adminMsg ? `\n• Note: "${adminMsg}"` : ''}\n\nPlease click the link to review & accept/revise your quote:\n🔗 ${portalUrl}\n\nThank you!`;
+    this.openWhatsAppLink(phone, message);
+  },
+
+  /**
+   * Send WhatsApp to Manager when Vendor responds to Counter-Offer (Vice-Versa)
+   */
+  shareManagerNegotiationResponseWhatsApp(managerPhone, vendorName, requestTitle, itemName, action, revisedRate, vendorMsg, comparisonUrl) {
+    let actionStr = 'ACCEPTED counter offer';
+    if (action === 'REVISE') {
+      actionStr = `REVISED rate to *${this.formatCurrency(revisedRate)}*`;
+    } else if (action === 'REJECT') {
+      actionStr = 'DECLINED counter offer';
     }
 
-    const titleMsg = requestTitle ? ` for *${requestTitle}*` : '';
-    const message = `Hello *${vendorName}*,\n\nPlease click the link below to submit your item rates${titleMsg} on *RateSarthi Portal*:\n\n🔗 ${portalUrl}\n\nThank you!`;
-
-    const encodedText = encodeURIComponent(message);
-    const whatsappDeepLink = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`;
-
-    window.open(whatsappDeepLink, '_blank');
+    const message = `💬 *RateSarthi — Vendor Negotiation Response*\n\nHello Manager,\n\nVendor *${vendorName}* has ${actionStr} for item *${itemName}* on RFQ *${requestTitle}*.${vendorMsg ? `\n• Vendor Note: "${vendorMsg}"` : ''}\n\n📊 Review updated comparison:\n🔗 ${comparisonUrl}\n\nThank you!`;
+    this.openWhatsAppLink(managerPhone, message);
   }
 };
+
