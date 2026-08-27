@@ -93,42 +93,53 @@ function renderRequestsTable(requests) {
 
 let activeRfqVendors = [];
 let activeRfqDetail = null;
+let currentBatchIndex = 0;
 
 async function openRfqWhatsAppModal(requestId) {
   const modal = document.getElementById('rfq-whatsapp-modal');
   const container = document.getElementById('rfq-modal-vendor-list');
+  const progressContainer = document.getElementById('batch-progress-container');
+  
+  if (progressContainer) progressContainer.classList.add('hidden');
+  currentBatchIndex = 0;
+
   container.innerHTML = `<div class="text-center py-8 text-slate-400">Loading assigned vendors...</div>`;
   if (modal) modal.classList.remove('hidden');
 
   const res = await API.request('getRequestDetail', { requestId: requestId });
   if (res.success && res.data) {
-    activeRfqDetail = res.data.request;
+    activeRfqDetail = res.data.request || {};
     activeRfqVendors = res.data.vendors || [];
 
-    document.getElementById('rfq-modal-title').textContent = `WhatsApp Vendor Links — ${activeRfqDetail.RequestTitle || requestId}`;
-    document.getElementById('rfq-modal-subtitle').textContent = `Assigned Vendors: ${activeRfqVendors.length} | Due Date: ${Utils.formatDate(activeRfqDetail.DueDate)}`;
+    const reqTitle = activeRfqDetail.RequestTitle || activeRfqDetail.requestTitle || requestId;
+    const dueDate = activeRfqDetail.DueDate || activeRfqDetail.dueDate || '';
+
+    document.getElementById('rfq-modal-title').textContent = `WhatsApp Vendor Links — ${reqTitle}`;
+    document.getElementById('rfq-modal-subtitle').textContent = `Assigned Vendors: ${activeRfqVendors.length} | Due Date: ${Utils.formatDate(dueDate)}`;
 
     if (activeRfqVendors.length === 0) {
       container.innerHTML = `<div class="text-center py-6 text-slate-400">No vendors assigned to this request.</div>`;
       return;
     }
 
-    container.innerHTML = activeRfqVendors.map(v => {
-      const portalUrl = `${window.location.origin}/vendor/portal.html?token=${v.portalToken || v.vendorId}&req=${requestId}`;      const safeVendorName = Utils.escapeHtml(v.vendorName);
+    container.innerHTML = activeRfqVendors.map((v, idx) => {
+      const vId = v.vendorId || v.VendorID;
+      const portalUrl = `${window.location.origin}/vendor/portal.html?token=${v.portalToken || vId}&req=${requestId}`;
+      const safeVendorName = Utils.escapeHtml(v.vendorName);
       const isDone = v.status === 'COMPLETED';
 
       return `
-        <div class="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-white hover:border-emerald-300 transition-colors">
+        <div id="vendor-card-${idx}" class="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-white hover:border-emerald-300 transition-colors">
           <div>
             <div class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
               <span>${safeVendorName}</span>
-              ${isDone ? '<span class="px-1.5 py-0.2 text-[9px] font-bold bg-emerald-100 text-emerald-800 rounded-full">Submitted</span>' : '<span class="px-1.5 py-0.2 text-[9px] font-medium bg-amber-100 text-amber-800 rounded-full">Pending</span>'}
+              <span id="badge-vendor-${idx}">${isDone ? '<span class="px-1.5 py-0.2 text-[9px] font-bold bg-emerald-100 text-emerald-800 rounded-full">Submitted</span>' : '<span class="px-1.5 py-0.2 text-[9px] font-medium bg-amber-100 text-amber-800 rounded-full">Pending</span>'}</span>
             </div>
             <div class="text-[11px] text-slate-400 mt-0.5">${Utils.escapeHtml(v.contactPerson || 'Vendor')} • ${Utils.escapeHtml(v.phone || 'No phone')}</div>
           </div>
 
-          <button onclick="Utils.shareVendorWhatsApp('${v.phone}', '${safeVendorName}', '${portalUrl}', '${activeRfqDetail.RequestTitle}', '${activeRfqDetail.DueDate}')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center gap-1">
-            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.51 1.037 3.531l-.68 2.483 2.544-.667a5.723 5.723 0 002.867.766h.003c3.181 0 5.768-2.586 5.768-5.766 0-3.18-2.587-5.766-5.771-5.766zm3.376 8.163c-.144.405-.837.774-1.17.822-.297.043-.685.064-1.114-.073-.264-.084-.607-.2-1.026-.381-1.815-.785-3.003-2.617-3.094-2.738-.09-.122-.743-.988-.743-1.884 0-.896.469-1.336.636-1.516.167-.18.365-.225.487-.225.122 0 .243.002.348.006.11.005.258-.042.404.308.15.361.512 1.25.556 1.341.045.09.075.196.015.316-.06.12-.09.196-.18.301-.09.105-.189.234-.27.315-.09.09-.184.188-.079.369.105.18.468.772 1.004 1.25.688.613 1.269.803 1.45.893.18.09.285.075.39-.045.105-.12.45-.525.57-.705.12-.18.24-.15.405-.09.165.06 1.05.495 1.23.585.18.09.3.135.345.21.045.075.045.435-.099.84z"/></svg>
+          <button id="btn-vendor-wa-${idx}" onclick="dispatchSingleVendorWhatsApp(${idx})" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center gap-1 transition-all">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.51 1.037 3.531l-.68 2.483 2.544-.667a5.723 5.723 0 002.867.766h.003c3.181 0 5.768-2.586 5.768-5.766 0-3.18-2.587-5.766-5.771-5.766zm3.376 8.163c-.144.405-.837.774-1.17.822-.297.043-.685.064-1.114-.073-.264-.084-.607-.2-1.026-.381-1.815-.785-3.003-2.617-3.094-2.738-.09-.122-.743-.988-.743-1.884 0-.896.469-1.336.636-1.516.167-.18.365-.225.487-.225.122 0 .243.002.348.006.11.005.258-.042.404.308.15.361.512 1.25.556 1.341.045.09.075.196.015.316-.06.12-.09.196-.18.301-.09.105-.189.234-.27.315-.09.09-.184.188-.079.369.105.18.468.772 1.004 1.25.688.613 1.269.803 1.45.893.18.09.3.135.345.21.045.075.045.435-.099.84z"/></svg>
             <span>Send WhatsApp</span>
           </button>
         </div>
@@ -144,20 +155,113 @@ function closeRfqWhatsAppModal() {
   if (modal) modal.classList.add('hidden');
 }
 
-function sendBatchWhatsAppToAll() {
+function dispatchSingleVendorWhatsApp(index) {
+  if (!activeRfqVendors || !activeRfqVendors[index]) return;
+  const v = activeRfqVendors[index];
+  const reqId = activeRfqDetail.RequestID || activeRfqDetail.requestId;
+  const reqTitle = activeRfqDetail.RequestTitle || activeRfqDetail.requestTitle || reqId;
+  const dueDate = activeRfqDetail.DueDate || activeRfqDetail.dueDate || '';
+  const portalUrl = `${window.location.origin}/vendor/portal.html?token=${v.portalToken || v.vendorId}&req=${reqId}`;
+
+  Utils.shareVendorWhatsApp(v.phone, v.vendorName, portalUrl, reqTitle, dueDate);
+
+  // Update card button state
+  const btn = document.getElementById(`btn-vendor-wa-${index}`);
+  if (btn) {
+    btn.className = 'px-3 py-1.5 rounded-lg bg-slate-800 text-white font-bold text-xs shadow-xs flex items-center gap-1';
+    btn.innerHTML = `<span>Sent ✅</span>`;
+  }
+}
+
+function startBatchWhatsAppDispatch() {
   if (!activeRfqVendors || activeRfqVendors.length === 0) {
     Utils.showToast('No assigned vendors to notify', 'warning');
     return;
   }
 
-  activeRfqVendors.forEach((v, index) => {
-    setTimeout(() => {
-      const portalUrl = `${window.location.origin}/vendor/portal.html?token=${v.portalToken || v.vendorId}&req=${activeRfqDetail.RequestID}`;
-      Utils.shareVendorWhatsApp(v.phone, v.vendorName, portalUrl, activeRfqDetail.RequestTitle, activeRfqDetail.DueDate);
-    }, index * 400); // Small stagger to avoid browser tab popup block
+  currentBatchIndex = 0;
+  const progressContainer = document.getElementById('batch-progress-container');
+  if (progressContainer) progressContainer.classList.remove('hidden');
+
+  updateBatchProgressUI();
+  // Open 1st vendor WhatsApp immediately on user click
+  dispatchSingleVendorWhatsApp(0);
+  currentBatchIndex = 1;
+  updateBatchProgressUI();
+}
+
+function sendNextVendorInQueue() {
+  if (currentBatchIndex >= activeRfqVendors.length) {
+    Utils.showToast('All vendors notified!', 'success');
+    return;
+  }
+
+  dispatchSingleVendorWhatsApp(currentBatchIndex);
+  currentBatchIndex++;
+  updateBatchProgressUI();
+}
+
+function updateBatchProgressUI() {
+  const total = activeRfqVendors.length;
+  const text = document.getElementById('batch-progress-text');
+  const btnNext = document.getElementById('btn-batch-next');
+
+  if (currentBatchIndex >= total) {
+    if (text) text.innerHTML = `🎉 <strong class="text-emerald-800">All ${total} Vendor links dispatched!</strong>`;
+    if (btnNext) {
+      btnNext.classList.add('hidden');
+    }
+  } else {
+    const nextVendor = activeRfqVendors[currentBatchIndex];
+    if (text) text.innerHTML = `Dispatched <strong>${currentBatchIndex} of ${total}</strong> • Next: <strong>${Utils.escapeHtml(nextVendor.vendorName)}</strong>`;
+    if (btnNext) {
+      btnNext.classList.remove('hidden');
+      btnNext.innerHTML = `<span>Send to ${Utils.escapeHtml(nextVendor.vendorName)} (${currentBatchIndex + 1}/${total}) ➔</span>`;
+    }
+  }
+}
+
+function copyAllVendorWhatsAppLinks() {
+  if (!activeRfqVendors || activeRfqVendors.length === 0) {
+    Utils.showToast('No assigned vendors to copy', 'warning');
+    return;
+  }
+
+  const reqId = activeRfqDetail.RequestID || activeRfqDetail.requestId;
+  const reqTitle = activeRfqDetail.RequestTitle || activeRfqDetail.requestTitle || reqId;
+
+  let textLines = [`📋 *RateSarthi Vendor Rate Links — ${reqTitle}*\n`];
+
+  activeRfqVendors.forEach((v, i) => {
+    const portalUrl = `${window.location.origin}/vendor/portal.html?token=${v.portalToken || v.vendorId}&req=${reqId}`;
+    textLines.push(`${i + 1}. *${v.vendorName}* (${v.phone || 'No phone'}):\n🔗 ${portalUrl}\n`);
   });
 
-  Utils.showToast(`Opening WhatsApp tabs for ${activeRfqVendors.length} vendors!`, 'success');
+  const fullText = textLines.join('\n');
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(fullText).then(() => {
+      Utils.showToast(`Copied all ${activeRfqVendors.length} vendor links to clipboard!`, 'success');
+    }).catch(() => {
+      fallbackCopyTextToClipboard(fullText);
+    });
+  } else {
+    fallbackCopyTextToClipboard(fullText);
+  }
+}
+
+function fallbackCopyTextToClipboard(text) {
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  document.body.appendChild(textArea);
+  textArea.select();
+  try {
+    document.execCommand('copy');
+    Utils.showToast('Copied all vendor links to clipboard!', 'success');
+  } catch (err) {
+    Utils.showToast('Failed to copy text', 'error');
+  }
+  document.body.removeChild(textArea);
 }
 
 function filterRequests() {

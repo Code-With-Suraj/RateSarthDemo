@@ -72,14 +72,29 @@
         </div>
 
         <div class="space-y-4">
-          <div class="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl p-3.5">
-            <div>
-              <span class="text-xs font-bold text-emerald-900 block">Fast Batch WhatsApp Dispatch</span>
-              <span class="text-[11px] text-emerald-700">Click below to sequentially open WhatsApp for all assigned vendors.</span>
+          <!-- Batch Dispatch Control Banner -->
+          <div id="rfq-batch-banner" class="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 space-y-2">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <span class="text-xs font-bold text-emerald-900 block" id="batch-banner-title">Fast Batch WhatsApp Dispatch</span>
+                <span class="text-[11px] text-emerald-700 block" id="batch-banner-desc">Click below to open WhatsApp for all assigned vendors sequentially.</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="copyAllVendorWhatsAppLinks()" title="Copy all vendor portal links & formatted text" class="px-3 py-2 bg-white border border-emerald-300 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-xl shadow-xs flex items-center gap-1">
+                  📋 <span>Copy All Links</span>
+                </button>
+                <button id="btn-batch-send-all" onclick="startBatchWhatsAppDispatch()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 whitespace-nowrap">
+                  <span>⚡ Send WhatsApp to ALL</span>
+                </button>
+              </div>
             </div>
-            <button onclick="sendBatchWhatsAppToAll()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 whitespace-nowrap">
-              <span>⚡ Send WhatsApp to ALL</span>
-            </button>
+            <!-- Guided Queue Progress Indicator (Hidden by default) -->
+            <div id="batch-progress-container" class="hidden border-t border-emerald-200/80 pt-2 flex items-center justify-between">
+              <span class="text-xs font-bold text-emerald-900" id="batch-progress-text">Progress: 0 / 0 sent</span>
+              <button id="btn-batch-next" onclick="sendNextVendorInQueue()" class="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg animate-pulse">
+                <span>Send Next Vendor ➔</span>
+              </button>
+            </div>
           </div>
 
           <div id="rfq-modal-vendor-list" class="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
@@ -87,7 +102,8 @@
           </div>
         </div>
 
-        <div class="pt-4 border-t border-slate-100 flex items-center justify-end">
+        <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+          <span class="text-[11px] text-slate-400">💡 Chrome popup blocker: If multi-tabs don't open, click "Send Next" button or copy links.</span>
           <button onclick="closeRfqWhatsAppModal()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200 transition-colors">Done / Close</button>
         </div>
       </div>
